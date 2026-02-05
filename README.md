@@ -1,82 +1,145 @@
 # TaskFlow
 
-A scalable, fault-tolerant distributed job queue system built with AWS SQS, ECS, and Node.js.
-
-## 🎯 Features (In Progress)
-
-- ✅ AWS SQS integration with dead letter queue
-- 🚧 Automatic retry with exponential backoff
-- 🚧 ECS Fargate deployment with auto-scaling
-- 🚧 Job state tracking with PostgreSQL
-- 🚧 Priority queue support
-- 🚧 CloudWatch monitoring and alerts
+A distributed job queue system built with AWS SQS, Node.js, and Express. Demonstrates asynchronous job processing with automatic failure handling.
 
 ## 🏗️ Architecture
+
 ```
-[API] → [SQS Queue] → [Worker Pool] → [RDS Database]
-                ↓
-         [Dead Letter Queue]
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│             │     │              │     │             │
+│  Client     │────▶│  REST API    │────▶│   AWS SQS   │
+│             │     │  (Express)   │     │   Queue     │
+└─────────────┘     └──────────────┘     └──────┬──────┘
+                                                 │
+                                                 │ polls
+                                                 ▼
+                                          ┌─────────────┐
+                                          │   Worker    │
+                                          │   Process   │
+                                          └──────┬──────┘
+                                                 │
+                                                 │ on failure (3x)
+                                                 ▼
+                                          ┌─────────────┐
+                                          │ Dead Letter │
+                                          │    Queue    │
+                                          └─────────────┘
 ```
 
-## 🛠️ Tech Stack
+**What it does:**
 
-- **Runtime:** Node.js
-- **Queue:** AWS SQS
-- **Database:** PostgreSQL (RDS)
-- **Container:** Docker + ECS Fargate
-- **Monitoring:** CloudWatch + X-Ray
+1. API receives job requests via HTTP
+2. Jobs are queued to AWS SQS
+3. Worker polls queue and processes jobs
+4. Failed jobs retry 3x, then move to dead letter queue
 
-## 🚀 Getting Started
+## Tech Stack
 
-### Prerequisites
-- Node.js 18+
-- AWS Account
-- Docker (for deployment)
+- Node.js + Express
+- AWS SQS (message queue)
+- AWS SDK v3
 
-### Local Setup
+## Setup
 
-1. Clone the repository
+1. **Clone and install**
+
 ```bash
 git clone https://github.com/Shadowwyyy/taskflow.git
 cd taskflow
-```
-
-2. Install dependencies
-```bash
 npm install
 ```
 
-3. Configure environment
+2. **Configure AWS**
+
+- Create IAM user with `AmazonSQSFullAccess`
+- Create two SQS queues: `taskflow-main` and `taskflow-dlq`
+- Set `taskflow-main` to use `taskflow-dlq` as dead letter queue (max receives: 3)
+
+3. **Set environment variables**
+
 ```bash
 cp .env.example .env
-# Edit .env with your AWS credentials
+# Edit .env with your AWS credentials and queue URLs
 ```
 
-4. Run the worker
+4. **Run**
+
 ```bash
+# Terminal 1: Start worker
 npm run worker
+
+# Terminal 2: Start API
+npm run api
 ```
 
-## 📋 Project Roadmap
+## Usage
 
-**Week 1:** Core infrastructure
-- [x] Project setup
-- [ ] SQS queue creation
-- [ ] Basic worker implementation
-- [ ] Local testing
+**Send a job:**
 
-**Week 2:** Production features
-- [ ] ECS deployment
-- [ ] Job persistence
-- [ ] Retry logic
-- [ ] Monitoring
+```bash
+curl -X POST http://localhost:3000/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "test",
+    "data": {"message": "Hello!"}
+  }'
+```
 
-**Week 3:** Polish
-- [ ] Documentation
-- [ ] Demo use case
-- [ ] Performance testing
+**Response:**
 
-## 📄 License
+```json
+{
+  "success": true,
+  "jobId": "job-1738792345678-abc123",
+  "message": "Job enqueued successfully"
+}
+```
+
+The worker will pick it up and process it automatically.
+
+## API Endpoints
+
+- `GET /health` - Health check
+- `POST /jobs` - Enqueue a job (body: `{type, data}`)
+- `GET /job-types` - List available job types
+
+## How It Works
+
+**API (`src/api/index.js`):**
+
+- Accepts HTTP requests
+- Generates unique job IDs
+- Sends jobs to SQS queue
+- Returns immediately (non-blocking)
+
+**Worker (`src/worker/index.js`):**
+
+- Polls SQS for messages (long polling, 20s)
+- Processes jobs (currently simulates 2s of work)
+- Deletes message on success
+- Failed jobs retry automatically (up to 3x)
+
+**Failure Handling:**
+
+- Jobs that fail 3x move to dead letter queue
+- Visibility timeout prevents duplicate processing
+- Long polling reduces AWS costs
+
+## Key Concepts
+
+- **Asynchronous processing**: Jobs don't block the API
+- **Decoupling**: API and worker run independently
+- **Fault tolerance**: Automatic retries + dead letter queue
+- **Scalability**: Can run multiple workers in parallel
+
+## Next Steps
+
+- [ ] Add job-specific handlers (email, image resize, etc.)
+- [ ] Add PostgreSQL for job status tracking
+- [ ] Deploy to AWS ECS with Docker
+- [ ] Add CloudWatch monitoring
+
+## License
 
 MIT
 
