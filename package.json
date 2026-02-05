@@ -1,0 +1,38 @@
+{
+  "name": "taskflow",
+  "version": "1.0.0",
+  "description": "Scalable distributed job queue system with AWS SQS, ECS, and automatic failure handling",
+  "main": "src/worker/index.js",
+  "scripts": {
+    "worker": "node src/worker/index.js",
+    "api": "node src/api/index.js",
+    "dev": "nodemon src/worker/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shadowwyyy/taskflow.git"
+  },
+  "keywords": [
+    "aws",
+    "sqs",
+    "job-queue",
+    "distributed-systems",
+    "task-queue"
+  ],
+  "author": "Jeet Sharma",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Shadowwyyy/taskflow/issues"
+  },
+  "homepage": "https://github.com/Shadowwyyy/taskflow#readme",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.984.0",
+    "@aws-sdk/client-sqs": "^3.984.0",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
