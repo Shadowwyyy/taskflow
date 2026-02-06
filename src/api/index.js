@@ -1,9 +1,20 @@
 require('dotenv').config();
 const express = require('express');
-const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { SQSClient, SendMessageCommand, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
 
 const app = express();
 app.use(express.json());
+
+// Enable CORS for dashboard
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Initialize SQS client
 const sqsClient = new SQSClient({
@@ -74,9 +85,40 @@ app.get('/job-types', (req, res) => {
       { type: 'test', description: 'Simple test job' },
       { type: 'email', description: 'Send email notification' },
       { type: 'image-resize', description: 'Resize and optimize image' },
-      { type: 'data-export', description: 'Export data to CSV' },
+      { type: 'csv-export', description: 'Export data to CSV' },
+      { type: 'failing-job', description: 'Test retry logic' },
     ],
   });
+});
+
+// Get queue statistics
+app.get('/stats', async (req, res) => {
+  try {
+    // Get main queue stats
+    const mainQueueStats = await sqsClient.send(new GetQueueAttributesCommand({
+      QueueUrl: QUEUE_URL,
+      AttributeNames: ['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible'],
+    }));
+
+    // Get DLQ stats
+    const dlqStats = await sqsClient.send(new GetQueueAttributesCommand({
+      QueueUrl: process.env.DLQ_URL,
+      AttributeNames: ['ApproximateNumberOfMessages'],
+    }));
+
+    res.json({
+      queue: {
+        waiting: parseInt(mainQueueStats.Attributes.ApproximateNumberOfMessages),
+        processing: parseInt(mainQueueStats.Attributes.ApproximateNumberOfMessagesNotVisible),
+      },
+      deadLetterQueue: {
+        failed: parseInt(dlqStats.Attributes.ApproximateNumberOfMessages),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
 });
 
 // Start server
@@ -87,4 +129,5 @@ app.listen(PORT, () => {
   console.log('---');
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Enqueue job: POST http://localhost:${PORT}/jobs`);
+  console.log(`Queue stats: GET http://localhost:${PORT}/stats`);
 });
