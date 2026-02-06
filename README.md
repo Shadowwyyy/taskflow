@@ -26,6 +26,37 @@ A distributed job queue system built with AWS SQS, Node.js, and Express. Demonst
                                           └─────────────┘
 ```
 
+## Features
+
+- REST API for job submission with instant response
+- Background worker with long polling (20s)
+- Multiple job type handlers:
+  - **test**: Basic 2s processing simulation
+  - **email**: Email notification handler
+  - **image-resize**: Image processing with Sharp
+  - **csv-export**: Data export to CSV
+  - **failing-job**: Retry logic demonstration
+- Exponential backoff retry (1s, 2s, 4s intervals)
+- Dead letter queue for failed jobs after 3 attempts
+- Real-time monitoring dashboard with live stats
+- Graceful shutdown handling
+
+## Dashboard
+
+React-based monitoring interface at `http://localhost:5173`:
+
+- Real-time queue statistics (updates every 2s)
+- Quick job submission templates
+- Visual status indicators for waiting, processing, and failed jobs
+
+To run dashboard:
+
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
 **What it does:**
 
 1. API receives job requests via HTTP
@@ -134,7 +165,8 @@ The worker will pick it up and process it automatically.
 
 ## Next Steps
 
-- [ ] Add job-specific handlers (email, image resize, etc.)
+- [x] Add job-specific handlers (email, image resize, CSV export)
+- [x] Add real-time monitoring dashboard
 - [ ] Add PostgreSQL for job status tracking
 - [ ] Deploy to AWS ECS with Docker
 - [ ] Add CloudWatch monitoring
