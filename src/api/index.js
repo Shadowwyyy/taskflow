@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { SQSClient, SendMessageCommand, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
+const { createJob } = require('../db');
 
 const app = express();
 app.use(express.json());
@@ -52,6 +53,9 @@ app.post('/jobs', async (req, res) => {
       data: data || {},
       createdAt: new Date().toISOString(),
     };
+
+    // Save to database
+    await createJob(job);
 
     // Send to SQS
     const command = new SendMessageCommand({
@@ -113,6 +117,79 @@ app.get('/stats', async (req, res) => {
       },
       deadLetterQueue: {
         failed: parseInt(dlqStats.Attributes.ApproximateNumberOfMessages),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// Get job by ID
+app.get('/jobs/:id', async (req, res) => {
+  try {
+    const { getJob } = require('../db');
+    const job = await getJob(req.params.id);
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.json({
+      id: job.id,
+      type: job.type,
+      data: job.data,
+      status: job.status,
+      attempts: job.attempts,
+      error: job.error,
+      result: job.result,
+      createdAt: job.created_at,
+      startedAt: job.started_at,
+      completedAt: job.completed_at,
+      failedAt: job.failed_at,
+    });
+  } catch (error) {
+    console.error('Error fetching job:', error);
+    res.status(500).json({ error: 'Failed to fetch job' });
+  }
+});
+
+// Get recent jobs
+app.get('/jobs', async (req, res) => {
+  try {
+    const { getRecentJobs } = require('../db');
+    const limit = parseInt(req.query.limit) || 50;
+    const jobs = await getRecentJobs(limit);
+    
+    res.json({
+      jobs: jobs.map(job => ({
+        id: job.id,
+        type: job.type,
+        status: job.status,
+        attempts: job.attempts,
+        createdAt: job.created_at,
+        completedAt: job.completed_at,
+        error: job.error,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
+
+// Get database stats
+app.get('/stats/db', async (req, res) => {
+  try {
+    const { getJobStats } = require('../db');
+    const stats = await getJobStats();
+    
+    res.json({
+      database: {
+        pending: parseInt(stats.pending),
+        running: parseInt(stats.running),
+        completed: parseInt(stats.completed),
+        failed: parseInt(stats.failed),
       },
     });
   } catch (error) {

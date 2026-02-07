@@ -210,3 +210,117 @@ textarea {
   font-size: 0.875rem;
   border: 1px solid #1f2937;
 }
+.db-stats {
+  background: #151b2b;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 900px;
+}
+
+.db-stats h3 {
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.db-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.db-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #0a0e1a;
+  border-radius: 6px;
+  border: 1px solid #1f2937;
+}
+
+.db-stat-label {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.db-stat-value {
+  color: #e4e7eb;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.recent-jobs {
+  background: #151b2b;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 900px;
+}
+
+.recent-jobs h3 {
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.jobs-table {
+  overflow-x: auto;
+}
+
+.jobs-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.jobs-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: #0a0e1a;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #1f2937;
+}
+
+.jobs-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #1f2937;
+  color: #e4e7eb;
+  font-size: 0.875rem;
+}
+
+.jobs-table tr:hover {
+  background: #1a2132;
+}
+
+.job-id {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: white;
+  display: inline-block;
+}
+
+.no-jobs {
+  text-align: center;
+  color: #6b7280;
+  padding: 2rem;
+  font-size: 0.875rem;
+}

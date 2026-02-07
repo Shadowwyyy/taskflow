@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, ChangeMessageVisibilityCommand } = require('@aws-sdk/client-sqs');
 const { processJob } = require('../handlers');
+const { markJobRunning, markJobCompleted, markJobFailed } = require('../db');
 
 // Initialize SQS client
 const sqsClient = new SQSClient({
@@ -23,70 +24,83 @@ function getBackoffDelay(attemptNumber) {
 
 // Poll SQS for messages
 async function pollQueue() {
-  console.log('👀 Polling queue for messages...');
+  console.log('Polling queue for messages...');
   
   try {
     const command = new ReceiveMessageCommand({
       QueueUrl: QUEUE_URL,
       MaxNumberOfMessages: 1,
-      WaitTimeSeconds: 20, // Long polling
+      WaitTimeSeconds: 20,
       MessageAttributeNames: ['All'],
-      AttributeNames: ['ApproximateReceiveCount'], // Track retry count
+      AttributeNames: ['ApproximateReceiveCount'],
     });
 
     const response = await sqsClient.send(command);
 
     if (response.Messages && response.Messages.length > 0) {
       for (const message of response.Messages) {
-        console.log('\n🔔 Received message from queue');
+        console.log('\nReceived message from queue');
         
-        // Get retry count
         const receiveCount = parseInt(message.Attributes?.ApproximateReceiveCount || '1');
-        const attemptNumber = receiveCount - 1; // 0-indexed
+        const attemptNumber = receiveCount;
         
         try {
-          // Parse the job data
           const job = JSON.parse(message.Body);
           
-          console.log(`📦 Processing job: ${job.id} (Attempt ${receiveCount}/${MAX_RETRIES})`);
-          console.log(`   Type: ${job.type}`);
-          console.log(`   Data:`, job.data);
+          console.log(`Processing job: ${job.id} (Attempt ${receiveCount}/${MAX_RETRIES})`);
+          console.log(`Type: ${job.type}`);
+          console.log('Data:', job.data);
           
-          // Process the job with appropriate handler
+          await markJobRunning(job.id, attemptNumber);
+          
           const result = await processJob(job);
           
-          console.log('✅ Job completed:', job.id);
-          console.log('   Result:', result);
+          console.log('Job completed:', job.id);
+          console.log('Result:', result);
           
-          // Delete message from queue after successful processing
+          await markJobCompleted(job.id, result);
+          
           await sqsClient.send(new DeleteMessageCommand({
             QueueUrl: QUEUE_URL,
             ReceiptHandle: message.ReceiptHandle,
           }));
           
-          console.log('🗑️  Message deleted from queue\n');
+          console.log('Message deleted from queue\n');
           
         } catch (error) {
-          console.error(`❌ Error processing job (Attempt ${receiveCount}/${MAX_RETRIES}):`, error.message);
+          console.error(`Error processing job (Attempt ${receiveCount}/${MAX_RETRIES}):`, error.message);
+          
+          let jobId;
+          try {
+            const job = JSON.parse(message.Body);
+            jobId = job.id;
+          } catch (e) {
+            console.error('Failed to parse job ID from message');
+          }
           
           if (receiveCount < MAX_RETRIES) {
-            // Calculate backoff delay
-            const backoffDelay = getBackoffDelay(attemptNumber);
+            const backoffDelay = getBackoffDelay(attemptNumber - 1);
             const backoffSeconds = Math.floor(backoffDelay / 1000);
             
-            console.log(`🔄 Retrying in ${backoffSeconds}s (exponential backoff)...`);
+            console.log(`Retrying in ${backoffSeconds}s (exponential backoff)...`);
             
-            // Change visibility timeout to implement backoff
+            if (jobId) {
+              await markJobFailed(jobId, error.message, attemptNumber);
+            }
+            
             await sqsClient.send(new ChangeMessageVisibilityCommand({
               QueueUrl: QUEUE_URL,
               ReceiptHandle: message.ReceiptHandle,
               VisibilityTimeout: backoffSeconds,
             }));
             
-            console.log(`⏰ Message will become visible again in ${backoffSeconds}s\n`);
+            console.log(`Message will become visible again in ${backoffSeconds}s\n`);
           } else {
-            console.error('💀 Max retries reached. Message will move to DLQ\n');
-            // Don't delete - let it go to DLQ automatically
+            console.error('Max retries reached. Message will move to DLQ\n');
+            
+            if (jobId) {
+              await markJobFailed(jobId, error.message, attemptNumber);
+            }
           }
         }
       }
@@ -94,10 +108,9 @@ async function pollQueue() {
       console.log('No messages in queue');
     }
   } catch (error) {
-    console.error('❌ Error polling queue:', error.message);
+    console.error('Error polling queue:', error.message);
   }
 
-  // Continue polling
   setTimeout(pollQueue, 1000);
 }
 
@@ -113,11 +126,11 @@ process.on('SIGTERM', () => {
 });
 
 // Start the worker
-console.log('🚀 TaskFlow Worker started');
-console.log('📍 Queue:', QUEUE_URL);
-console.log('📍 Handlers: image-resize, email, csv-export, test');
-console.log('📍 Max retries:', MAX_RETRIES);
-console.log('📍 Base retry delay:', RETRY_DELAY_MS + 'ms');
+console.log('TaskFlow Worker started');
+console.log('Queue:', QUEUE_URL);
+console.log('Handlers: image-resize, email, csv-export, test');
+console.log('Max retries:', MAX_RETRIES);
+console.log('Base retry delay:', RETRY_DELAY_MS + 'ms');
 console.log('---');
 
 pollQueue();

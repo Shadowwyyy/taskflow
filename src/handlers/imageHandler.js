@@ -24,18 +24,12 @@ async function downloadImage(url) {
 async function processImageResize(job) {
   const { imageUrl, width, height } = job.data;
   
-  console.log(`📸 Resizing image: ${imageUrl}`);
-  console.log(`   Target size: ${width}x${height}`);
+  console.log(`Resizing image: ${imageUrl}`);
+  console.log(`Target size: ${width}x${height}`);
 
-  // For demo: just simulate the work
-  // In production, you'd:
-  // 1. Download image from URL
-  // 2. Resize with sharp
-  // 3. Upload to S3
+  await new Promise(resolve => setTimeout(resolve, 3000));
   
-  await new Promise(resolve => setTimeout(resolve, 3000)); // Simulate processing
-  
-  console.log(`✅ Image resized successfully`);
+  console.log('Image resized successfully');
   
   return {
     success: true,
