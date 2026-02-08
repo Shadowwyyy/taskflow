@@ -41,6 +41,32 @@ A distributed job queue system built with AWS SQS, Node.js, and Express. Demonst
 - Real-time monitoring dashboard with live stats
 - Graceful shutdown handling
 
+## Testing
+
+Run the test suite:
+
+```bash
+npm test
+```
+
+Run tests in watch mode:
+
+```bash
+npm test:watch
+```
+
+Generate coverage report:
+
+```bash
+npm test:coverage
+```
+
+Current test coverage:
+
+- 10 test cases
+- Handler tests (6)
+- API endpoint tests (4)
+
 ## Dashboard
 
 React-based monitoring interface at `http://localhost:5173`:
@@ -167,7 +193,7 @@ The worker will pick it up and process it automatically.
 
 - [x] Add job-specific handlers (email, image resize, CSV export)
 - [x] Add real-time monitoring dashboard
-- [ ] Add PostgreSQL for job status tracking
+- [x] Add PostgreSQL for job status tracking
 - [ ] Deploy to AWS ECS with Docker
 - [ ] Add CloudWatch monitoring
 
